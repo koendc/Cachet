@@ -1,5 +1,13 @@
 @if($days_to_show > 0 && $all_incidents)
 <div class="section-timeline">
+    @foreach($all_active_incidents as $date => $incidents)
+    @include('partials.incidents', [compact($date), compact($incidents)])
+    @endforeach
+</div>
+
+<hr size='80%' style='display:block;border-width:5px;border-color:grey'>
+
+<div class="section-timeline">
     <h1>{{ trans('cachet.incidents.past') }}</h1>
     @foreach($all_incidents as $date => $incidents)
     @include('partials.incidents', [compact($date), compact($incidents)])

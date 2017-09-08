@@ -69,7 +69,14 @@ class StatusPageController extends AbstractApiController
         $allIncidents = Incident::where('visible', '>=', (int) !Auth::check())->whereBetween('occurred_at', [
             $startDate->copy()->subDays($daysToShow)->format('Y-m-d').' 00:00:00',
             $startDate->format('Y-m-d').' 23:59:59',
-        ])->orderBy('occurred_at', 'desc')->get()->groupBy(function (Incident $incident) {
+        ])->where('status','=',4)->orderBy('occurred_at', 'desc')->get()->groupBy(function (Incident $incident) {
+            return app(DateFactory::class)->make($incident->occurred_at)->toDateString();
+        });
+
+        $allActiveIncidents = Incident::where('visible', '>=', (int) !Auth::check())->whereBetween('occurred_at', [
+            $startDate->copy()->subDays($daysToShow)->format('Y-m-d').' 00:00:00',
+            $startDate->format('Y-m-d').' 23:59:59',
+        ])->where('status','!=',4)->orderBy('occurred_at', 'desc')->get()->groupBy(function (Incident $incident) {
             return app(DateFactory::class)->make($incident->occurred_at)->toDateString();
         });
 
@@ -91,6 +98,7 @@ class StatusPageController extends AbstractApiController
 
         return View::make('index')
             ->withDaysToShow($daysToShow)
+            ->withAllActiveIncidents($allActiveIncidents)
             ->withAllIncidents($allIncidents)
             ->withCanPageForward((bool) $today->gt($startDate))
             ->withCanPageBackward(Incident::where('occurred_at', '<', $startDate->format('Y-m-d'))->count() > 0)
