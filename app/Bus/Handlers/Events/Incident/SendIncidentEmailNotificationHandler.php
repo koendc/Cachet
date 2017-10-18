@@ -13,6 +13,7 @@ namespace CachetHQ\Cachet\Bus\Handlers\Events\Incident;
 
 use CachetHQ\Cachet\Bus\Events\Incident\IncidentWasCreatedEvent;
 use CachetHQ\Cachet\Models\Subscriber;
+use CachetHQ\Cachet\Models\User;
 use CachetHQ\Cachet\Notifications\Incident\NewIncidentNotification;
 
 class SendIncidentEmailNotificationHandler
@@ -51,15 +52,22 @@ class SendIncidentEmailNotificationHandler
             return false;
         }
 
-        // Only send emails for public incidents.
-        if (!$incident->visible) {
-            return;
-        }
+        // User email addresses
+        $userEmails = User::active()->get()->map(function ($user) { return $user->email; })->all();
 
         // First notify all global subscribers.
-        $globalSubscribers = $this->subscriber->isVerified()->isGlobal()->get();
+        $globalSubscribers = $this->subscriber
+          ->isVerified()
+          ->isGlobal()
+          ->get()
+          ->filter(function($subscriber) use ($userEmails, $incident) {
+            // For invisible incidents: only send notifications to users
+            return $incident->visible || in_array($subscriber->email, $userEmails);
+          });
 
         $globalSubscribers->each(function ($subscriber) use ($incident) {
+            if (!$incident->visible) {
+            }
             $subscriber->notify(new NewIncidentNotification($incident));
         });
 
@@ -74,7 +82,10 @@ class SendIncidentEmailNotificationHandler
             ->isVerified()
             ->forComponent($incident->component->id)
             ->get()
-            ->reject(function ($subscriber) use ($notified) {
+            ->filter(function($subscriber) use ($userEmails, $incident) {
+              // For invisible incidents: only send notifications to users
+              return $incident->visible || in_array($subscriber->email, $userEmails);
+            })->reject(function ($subscriber) use ($notified) {
                 return in_array($subscriber->id, $notified);
             })->each(function ($subscriber) use ($incident) {
                 $subscriber->notify(new NewIncidentNotification($incident));
